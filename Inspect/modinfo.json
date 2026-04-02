@@ -1,0 +1,12 @@
+{
+    "$schema": "https://moddbcdn.vintagestory.at/schema/modinfo.latest.json",
+    "type": "Code",
+    "modid": "inspect",
+    "name": "Inspect",
+    "authors": [ "Craluminum2413 (Dana)" ],
+    "description": "Inspect any held item or block",
+    "version": "1.0.0",
+    "dependencies": {
+        "game": "1.22.0-pre.1"
+    }
+}
