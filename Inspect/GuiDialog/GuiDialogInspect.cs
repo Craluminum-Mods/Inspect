@@ -14,7 +14,8 @@ public class GuiDialogInspect : GuiDialog
     Vec4f lighPos = new Vec4f(-1, -1, 0, 0).NormalizeXYZ();
     Matrixf mat = new Matrixf();
 
-    ItemStack? forStack;
+    public static bool lockStack = false;
+    public static ItemStack? forStack;
 #nullable disable
     protected ElementBounds insetSlotBounds;
 #nullable enable
@@ -33,8 +34,8 @@ public class GuiDialogInspect : GuiDialog
 
     public const float AUTO_ROTATION_DELAY_IN_MS = 1500;
 
-    public override float ZSize => (float)GuiElement.scaled(999);
-
+    public override float ZSize => 999;
+    public override double DrawOrder => 0.889;
     public override string? ToggleKeyCombinationCode => null;
     
     public override bool PrefersUngrabbedMouse => false;
@@ -87,9 +88,9 @@ public class GuiDialogInspect : GuiDialog
 
     public override void OnGuiOpened()
     {
-        forStack = null;
         showTooltip = true;
         ComposeGuis();
+        lockStack = true;
     }
 
     public override void OnGuiClosed()
@@ -97,6 +98,7 @@ public class GuiDialogInspect : GuiDialog
         forStack = null;
         ResetValues();
         ResetAutoRotation();
+        lockStack = false;
     }
 
     private void ResetValues()
@@ -270,22 +272,31 @@ public class GuiDialogInspect : GuiDialog
 
     public bool ToggleGui(KeyCombination k)
     {
-        Toggle();
+        if (forStack != null)
+        {
+            Toggle();
+            forStack = forStack?.Clone();
+            return true;
+        }
+
         if (!capi.World.Player.InventoryManager.ActiveHotbarSlot.Empty)
         {
+            Toggle();
             forStack = capi.World.Player.InventoryManager.ActiveHotbarSlot.Itemstack?.Clone();
+            return true;
         }
-        return true;
+        return false;
     }
 
     public bool ToggleGuiForSelectedBlock(KeyCombination k)
     {
-        Toggle();
         if (capi.World.Player.CurrentBlockSelection != null)
         {
+            Toggle();
             forStack = capi.World.Player.CurrentBlockSelection.Block.OnPickBlock(capi.World, capi.World.Player.CurrentBlockSelection.Position)?.Clone();
+            return true;
         }
-        return true;
+        return false;
     }
 
     public override void OnKeyUp(KeyEvent args)
