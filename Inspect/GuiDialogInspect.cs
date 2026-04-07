@@ -27,6 +27,8 @@ public class GuiDialogInspect : GuiDialog
     protected bool autoRotation = true;
     protected float? autoRotationDelayInMs;
 
+    public const float AUTO_ROTATION_DELAY_IN_MS = 1500;
+
     public override float ZSize => (float)GuiElement.scaled(999);
 
     public override string ToggleKeyCombinationCode => "inspect";
@@ -137,7 +139,7 @@ public class GuiDialogInspect : GuiDialog
         if (rotateObject)
         {
             autoRotation = false;
-            autoRotationDelayInMs = 2000;
+            autoRotationDelayInMs = AUTO_ROTATION_DELAY_IN_MS;
 
             float sensitivity = 0.4f;
 
@@ -156,7 +158,7 @@ public class GuiDialogInspect : GuiDialog
         if (offsetObject)
         {
             autoRotation = false;
-            autoRotationDelayInMs = 2000;
+            autoRotationDelayInMs = AUTO_ROTATION_DELAY_IN_MS;
 
             offsetX += args.DeltaX;
             offsetY += args.DeltaY;
