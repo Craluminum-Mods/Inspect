@@ -109,13 +109,10 @@ public class GuiDialogInspect : GuiDialog
         Vec4f lightRot = mat.TransformVector(lighPos);
         capi.Render.CurrentActiveShader.Uniform("lightPosition", lightRot.X, lightRot.Y, lightRot.Z);
 
-        double w = capi.Render.FrameWidth / RuntimeEnv.GUIScale;
-        double h = capi.Render.FrameHeight / RuntimeEnv.GUIScale;
-
-        float centerX = (float)(w / 2);
-        float centerY = (float)(h / 2);
-        float posZ = (float)GuiElement.scaled(9999);
-        float size = (float)GuiElement.scaled(100 * charZoom);
+float centerX = capi.Render.FrameWidth * 0.5f;
+float centerY = capi.Render.FrameHeight * 0.5f;
+float posZ = (float)GuiElement.scaled(9999);
+float size = (float)GuiElement.scaled(100 * charZoom);
 
         capi.Render.PushScissor(insetSlotBounds);
 
@@ -134,17 +131,20 @@ public class GuiDialogInspect : GuiDialog
                 ModelTransform transform = renderInfo.Transform;
                 bool upsideDown = itemstack.Class == EnumItemClass.Block;
 
+                float itemOffsetX = itemstack.Class == EnumItemClass.Item ? 3f : 0f;
+                float itemOffsetY = itemstack.Class == EnumItemClass.Item ? 1f : 0f;
+                float originX = (float)(transform.Origin.X + GuiElement.scaled(transform.Translation.X));
+                float originY = (float)(transform.Origin.Y + GuiElement.scaled(transform.Translation.Y));
+                float originZ = (float)(transform.Origin.Z * size + GuiElement.scaled(transform.Translation.Z));
+
                 mat.Identity();
                 mat.Translate(
-                    (int)centerX - (itemstack.Class == EnumItemClass.Item ? 3 : 0),
-                    (int)centerY - (itemstack.Class == EnumItemClass.Item ? 1 : 0),
+                    centerX - itemOffsetX - originX,
+                    centerY - itemOffsetY - originY,
                     posZ
                 );
-                mat.Translate(
-                    transform.Origin.X + GuiElement.scaled(transform.Translation.X),
-                    transform.Origin.Y + GuiElement.scaled(transform.Translation.Y),
-                    transform.Origin.Z * size + GuiElement.scaled(transform.Translation.Z)
-                );
+                mat.Translate(originX, originY, originZ);
+
                 mat.Scale(
                     size * transform.ScaleXYZ.X,
                     size * transform.ScaleXYZ.Y,
@@ -165,11 +165,12 @@ public class GuiDialogInspect : GuiDialog
                 shader.ProjectionMatrix = game.CurrentProjectionMatrix;
                 shader.ModelViewMatrix = mat.ReverseMul(game.CurrentModelViewMatrix).Values;
                 shader.ApplyModelMat = 1;
+
+                capi.Render.RenderMultiTextureMesh(renderInfo.ModelRef, "tex2d");
+
                 shader.ApplyModelMat = 0;
                 shader.NormalShaded = 0;
                 shader.AlphaTest = 0f;
-
-                capi.Render.RenderMultiTextureMesh(renderInfo.ModelRef, "tex2d");
 
             }
         }
