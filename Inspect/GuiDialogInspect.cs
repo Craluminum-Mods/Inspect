@@ -229,7 +229,7 @@ public class GuiDialogInspect : GuiDialog
         if (autoRotation)
         {
             rotY += deltaTime * 20f;
-            rotX = 10f * (float)Math.Sin(capi.InWorldEllapsedMilliseconds / 1000f);
+            rotX += (float)Math.Cos(capi.InWorldEllapsedMilliseconds / 1000f) * deltaTime * 5f;
         }
 
         mat.Identity().RotateXDeg(-14);
