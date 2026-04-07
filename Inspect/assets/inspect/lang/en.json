@@ -1,9 +1,19 @@
 {
-    "hotkey-inspect": "Inspect a held item / block",
-    "controls-hidetooltip": "Hide Tooltip:                        Shift",
-    "controls-reset":       "Reset View:                         Space",
-    "controls-rotate":      "Rotate:                                Left Mouse",
-    "controls-move":        "Move:                                  Right Mouse",
-    "controls-zoom":        "Zoom:                                  Mouse Wheel",
-    "controls-autorotate":  "Toggle Auto Rotate:             R"
+    "hotkey-toggle": "Inspect a held item / block",
+    "hotkey-hidetooltip":     "inspect: Hide Tooltip",
+    "hotkey-reset":           "inspect: Reset View",
+    "hotkey-zoom-in":         "inspect: Zoom In",
+    "hotkey-zoom-out":        "inspect: Zoom Out",
+    "hotkey-autorotate":      "inspect: Toggle Auto Rotate",
+
+    "tooltip-hidetooltip":     "Hide Tooltip:      <hk>inspect:hidetooltip</hk>",
+    "tooltip-reset":           "Reset View:      <hk>inspect:reset</hk>",
+    "tooltip-rotate":          "Rotate:      <icon>leftmousebutton</icon>",
+    "tooltip-move":            "Move:      <icon>rightmousebutton</icon>",
+    "tooltip-zoom":            "Zoom:      {0}",
+    "tooltip-zoom-in":         "Zoom In:      <hk>inspect:zoom-in</hk>",
+    "tooltip-zoom-out":        "Zoom Out:      <hk>inspect:zoom-out</hk>",
+    "tooltip-autorotate":      "Toggle Auto Rotate:      <hk>inspect:autorotate</hk>",
+
+    "key-mouse-wheel": "Mouse Wheel"
 }

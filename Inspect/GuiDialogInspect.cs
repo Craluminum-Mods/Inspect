@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -13,16 +14,17 @@ public class GuiDialogInspect : GuiDialog
     Vec4f lighPos = new Vec4f(-1, -1, 0, 0).NormalizeXYZ();
     Matrixf mat = new Matrixf();
 
+#nullable disable
     protected ElementBounds insetSlotBounds;
-
+#nullable enable
     protected bool rotateObject;
     protected bool offsetObject;
     protected float charZoom = 2f;
     protected float rotX;
     protected float rotY;
     protected float rotZ;
-    protected float? offsetX;
-    protected float? offsetY;
+    protected float offsetX;
+    protected float offsetY;
     protected bool showTooltip = true;
     protected bool autoRotation = true;
     protected float? autoRotationDelayInMs;
@@ -31,15 +33,17 @@ public class GuiDialogInspect : GuiDialog
 
     public override float ZSize => (float)GuiElement.scaled(999);
 
-    public override string ToggleKeyCombinationCode => "inspect";
+    public override string ToggleKeyCombinationCode => "inspect:toggle";
     
+    public override bool PrefersUngrabbedMouse => false;
+
     public override bool CaptureAllInputs() => true;
 
     public GuiDialogInspect(ICoreClientAPI capi) : base(capi)
     {
         (capi.World as ClientMain)?.Platform.WindowResized += Platform_WindowResized;
     }
-
+    
     private void Platform_WindowResized(int nowWidth, int nowHeight) => ComposeGuis();
 
     protected void ComposeGuis()
@@ -51,7 +55,7 @@ public class GuiDialogInspect : GuiDialog
         ElementBounds childBounds = ElementBounds.Fixed(0, 0, w, h);
         insetSlotBounds = ElementBounds.Fixed(0, 0, w, h).WithAlignment(EnumDialogArea.LeftTop);
 
-        ElementBounds tooltipBounds = ElementBounds.Fixed(GuiStyle.ElementToDialogPadding * 2, GuiStyle.ElementToDialogPadding * 2, 0, 0).WithAlignment(EnumDialogArea.LeftTop);
+        ElementBounds tooltipBounds = ElementBounds.Fixed(GuiStyle.ElementToDialogPadding * 2, GuiStyle.ElementToDialogPadding * 2, 1000, 0).WithAlignment(EnumDialogArea.LeftTop);
 
         GuiComposer composer;
         Composers["inspect"] = composer = capi.Gui
@@ -62,19 +66,21 @@ public class GuiDialogInspect : GuiDialog
         bgColor[3] = 0.65f;
         composer.AddGameOverlay(insetSlotBounds, bgColor);
 
-        StringBuilder topText = new();
-        topText.AppendLine(Lang.Get("inspect:controls-hidetooltip"));
-        topText.AppendLine(Lang.Get("inspect:controls-reset"));
-        topText.AppendLine(Lang.Get("inspect:controls-rotate"));
-        topText.AppendLine(Lang.Get("inspect:controls-move"));
-        topText.AppendLine(Lang.Get("inspect:controls-zoom"));
-        topText.AppendLine(Lang.Get("inspect:controls-autorotate"));
+        StringBuilder tooltipText = new();
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-hidetooltip"));
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-reset"));
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-rotate"));
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-move"));
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-zoom", Lang.Get("inspect:key-mouse-wheel")));
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-zoom-in"));
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-zoom-out"));
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-autorotate"));
 
         composer.AddIf(showTooltip);
-        composer.AddStaticTextAutoBoxSize(topText.ToString(), CairoFont.WhiteMediumText().WithFontSize(24), EnumTextOrientation.Left, tooltipBounds, "tooltip");
+        composer.AddRichtext(tooltipText.ToString(), CairoFont.WhiteMediumText().WithFontSize(24), tooltipBounds, "tooltip");
         composer.EndIf();
-
         composer.Compose();
+        composer?.GetRichtext("tooltip")?.CalcHeightAndPositions();
     }
 
     public override void OnGuiOpened() => ComposeGuis();
@@ -94,6 +100,7 @@ public class GuiDialogInspect : GuiDialog
         offsetX = 0f;
         offsetY = 0f;
         rotateObject = false;
+        offsetObject = false;
         showTooltip = true;
     }
 
@@ -109,8 +116,6 @@ public class GuiDialogInspect : GuiDialog
         charZoom = GameMath.Clamp(charZoom + args.deltaPrecise / 5f, 0.5f, 10f);
         args.SetHandled(true);
     }
-
-    public override bool PrefersUngrabbedMouse => false;
 
     public override void OnMouseDown(MouseEvent args)
     {
@@ -173,37 +178,67 @@ public class GuiDialogInspect : GuiDialog
     public override void OnKeyPress(KeyEvent args)
     {
         base.OnKeyPress(args);
-
-        int glKey = KeyConverter.NewKeysToGlKeys[args.KeyCode];
-
-        switch (glKey)
-        {
-            case (int)GlKeys.Space:
-                ResetValues();
-                args.Handled = true;
-                break;
-        }
     }
 
     public override void OnKeyDown(KeyEvent args)
     {
         base.OnKeyDown(args);
 
-        if (args.ShiftPressed)
+        Dictionary<string, Func<bool>> hotkeys = new()
         {
-            showTooltip = !showTooltip;
-            ComposeGuis();
-            args.Handled = true;
-        }
+            { "inspect:hidetooltip", OnHideTooltip },
+            { "inspect:reset", OnResetValues },
+            { "inspect:zoom-in", OnZoomIn },
+            { "inspect:zoom-out", OnZoomOut },
+            { "inspect:autorotate", OnToggleAutoRotate }
+        };
 
-        switch (args.KeyCode)
+        foreach ((string hotkeyCode, Func<bool> func) in hotkeys)
         {
-            case (int)GlKeys.R:
-                autoRotation = !autoRotation;
-                autoRotationDelayInMs = null;
-                args.Handled = true;
-                break;
+            HotKey hotkey = capi.Input.GetHotKeyByCode(hotkeyCode);
+            if (hotkey == null) continue;
+
+            if (hotkey.DidPress(args, capi.World, capi.World.Player, allowCharacterControls: true))
+            {
+                args.Handled = func.Invoke();
+            }
+            else if (hotkey.FallbackDidPress(args, capi.World, capi.World.Player, allowCharacterControls: true))
+            {
+                args.Handled = func.Invoke();
+            }
         }
+    }
+
+    private bool OnHideTooltip()
+    {
+        showTooltip = !showTooltip;
+        ComposeGuis();
+        return true;
+    }
+
+    private bool OnResetValues()
+    {
+        ResetValues();
+        return true;
+    }
+
+    private bool OnZoomIn()
+    {
+        charZoom = GameMath.Clamp(charZoom + 10 / 5f, 0.5f, 10f);
+        return true;
+    }
+
+    private bool OnZoomOut()
+    {
+        charZoom = GameMath.Clamp(charZoom - 10 / 5f, 0.5f, 10f);
+        return true;
+    }
+
+    private bool OnToggleAutoRotate()
+    {
+        autoRotation = !autoRotation;
+        autoRotationDelayInMs = null;
+        return true;
     }
 
     public override void OnKeyUp(KeyEvent args)
@@ -241,15 +276,15 @@ public class GuiDialogInspect : GuiDialog
         var frameWidth = capi.Render.FrameWidth * 0.5f;
         var frameHeight = capi.Render.FrameHeight * 0.5f;
 
-        float centerX = offsetX != null ? offsetX.Value + frameWidth : frameWidth;
-        float centerY = offsetY != null ? offsetY.Value + frameHeight : frameHeight;
+        float centerX = (float)offsetX + frameWidth;
+        float centerY = (float)offsetY + frameHeight;
         float posZ = (float)GuiElement.scaled(9999);
         float size = (float)GuiElement.scaled(100 * charZoom);
 
         capi.Render.PushScissor(insetSlotBounds);
 
         ItemSlot slot = capi.World.Player.InventoryManager.ActiveHotbarSlot;
-        ItemStack itemstack = slot.Itemstack;
+        ItemStack? itemstack = slot.Itemstack;
 
         if (itemstack != null)
         {
