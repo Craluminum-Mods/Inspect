@@ -14,6 +14,7 @@ public class GuiDialogInspect : GuiDialog
     Vec4f lighPos = new Vec4f(-1, -1, 0, 0).NormalizeXYZ();
     Matrixf mat = new Matrixf();
 
+    ItemStack? forStack;
 #nullable disable
     protected ElementBounds insetSlotBounds;
 #nullable enable
@@ -235,6 +236,8 @@ public class GuiDialogInspect : GuiDialog
     private bool OnResetValues()
     {
         ResetValues();
+        autoRotation = false;
+        autoRotationDelayInMs = AUTO_ROTATION_DELAY_IN_MS;
         return true;
     }
 
@@ -264,8 +267,6 @@ public class GuiDialogInspect : GuiDialog
         capi.Input.SetHotKeyHandler("inspect:toggle", ToggleGui);
         capi.Input.SetHotKeyHandler("inspect:toggle-for-block", ToggleGuiForSelectedBlock);
     }
-
-    ItemStack? forStack;
 
     public bool ToggleGui(KeyCombination k)
     {
@@ -330,9 +331,6 @@ public class GuiDialogInspect : GuiDialog
         float size = (float)GuiElement.scaled(100 * currentZoom);
 
         capi.Render.PushScissor(insetSlotBounds);
-
-        //ItemSlot slot = capi.World.Player.InventoryManager.ActiveHotbarSlot;
-        //ItemStack? itemstack = slot.Itemstack;
 
         DummySlot slot = new DummySlot(forStack);
         ItemStack? itemstack = slot.Itemstack;
