@@ -1,4 +1,5 @@
 ﻿using Vintagestory.API.Client;
+using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.Client.NoObf;
@@ -13,10 +14,10 @@ public class GuiDialogInspect : GuiDialog
     protected ElementBounds insetSlotBounds;
 
     protected bool rotateObject;
-    protected float charZoom = 1f;
-    protected float rotX = 0f;
-    protected float rotY = 0f;
-    protected float rotZ = 0f;
+    protected float charZoom = 2f;
+    protected float rotX;
+    protected float rotY;
+    protected float rotZ;
 
     public override float ZSize => (float)GuiElement.scaled(999);
 
@@ -52,7 +53,7 @@ public class GuiDialogInspect : GuiDialog
 
     public override void OnGuiClosed()
     {
-        charZoom = 5f;
+        charZoom = 2f;
         rotX = 0f;
         rotY = 0f;
         rotZ = 0f;
@@ -62,14 +63,11 @@ public class GuiDialogInspect : GuiDialog
     public override void OnMouseWheel(MouseWheelEventArgs args)
     {
         base.OnMouseWheel(args);
-
         charZoom = GameMath.Clamp(charZoom + args.deltaPrecise / 5f, 0.5f, 10f);
         args.SetHandled(true);
     }
 
     public override bool PrefersUngrabbedMouse => false;
-
-    #region Render
 
     public override void OnMouseDown(MouseEvent args)
     {
@@ -86,28 +84,26 @@ public class GuiDialogInspect : GuiDialog
     public override void OnMouseMove(MouseEvent args)
     {
         base.OnMouseMove(args);
-        if (rotateObject)
-        {
-            bool shiftPressed = (args.Modifiers & 1) != 0;
-            float sensitivity = 0.4f;
 
-            if (shiftPressed)
-            {
-                rotZ -= args.DeltaX * sensitivity;
-            }
-            else
-            {
-                rotY -= args.DeltaX * sensitivity;
-            }
-            rotX -= args.DeltaY * sensitivity;
+        if (!rotateObject) return;
+
+        float sensitivity = 0.4f;
+
+        if ((args.Modifiers & 1) != 0)
+        {
+            rotZ -= args.DeltaX * sensitivity;
         }
+        else
+        {
+            rotY -= args.DeltaX * sensitivity;
+        }
+
+        rotX -= args.DeltaY * sensitivity;
     }
 
     public override void OnRenderGUI(float deltaTime)
     {
         base.OnRenderGUI(deltaTime);
-
-        capi.Render.GlPushMatrix();
 
         mat.Identity().RotateXDeg(-14);
         Vec4f lightRot = mat.TransformVector(lighPos);
@@ -116,33 +112,71 @@ public class GuiDialogInspect : GuiDialog
         double w = capi.Render.FrameWidth / RuntimeEnv.GUIScale;
         double h = capi.Render.FrameHeight / RuntimeEnv.GUIScale;
 
-        float posX = (float)((w / 2) - GuiElement.scaled(150));
-        float posY = (float)((h / 2) - GuiElement.scaled(150));
+        float centerX = (float)(w / 2);
+        float centerY = (float)(h / 2);
         float posZ = (float)GuiElement.scaled(9999);
         float size = (float)GuiElement.scaled(100 * charZoom);
 
-        capi.Render.GlTranslate(posX, posY, posZ);
-
-        capi.Render.GlRotate(rotX, 1, 0, 0);
-        capi.Render.GlRotate(rotY, 0, 1, 0);
-        capi.Render.GlRotate(rotZ, 0, 0, 1);
-
         capi.Render.PushScissor(insetSlotBounds);
 
-        capi.Render.RenderItemstackToGui(
-            capi.World.Player.InventoryManager.ActiveHotbarSlot,
-            0, 0, 0,
-            size,
-            ColorUtil.WhiteArgb,
-            showStackSize: false
-        );
+        ItemSlot slot = capi.World.Player.InventoryManager.ActiveHotbarSlot;
+        ItemStack itemstack = slot.Itemstack;
+
+        if (itemstack != null)
+        {
+            ClientMain game = (ClientMain)capi.World;
+            ItemRenderInfo renderInfo = InventoryItemRenderer.GetItemStackRenderInfo(game, slot, EnumItemRenderTarget.Gui, deltaTime);
+
+            if (renderInfo.ModelRef != null)
+            {
+                itemstack.Collectible.InGuiIdle(game, itemstack);
+
+                ModelTransform transform = renderInfo.Transform;
+                bool upsideDown = itemstack.Class == EnumItemClass.Block;
+
+                mat.Identity();
+                mat.Translate(
+                    (int)centerX - (itemstack.Class == EnumItemClass.Item ? 3 : 0),
+                    (int)centerY - (itemstack.Class == EnumItemClass.Item ? 1 : 0),
+                    posZ
+                );
+                mat.Translate(
+                    transform.Origin.X + GuiElement.scaled(transform.Translation.X),
+                    transform.Origin.Y + GuiElement.scaled(transform.Translation.Y),
+                    transform.Origin.Z * size + GuiElement.scaled(transform.Translation.Z)
+                );
+                mat.Scale(
+                    size * transform.ScaleXYZ.X,
+                    size * transform.ScaleXYZ.Y,
+                    size * transform.ScaleXYZ.Z
+                );
+                mat.RotateXDeg(transform.Rotation.X + rotX + (upsideDown ? 180f : 0));
+                mat.RotateYDeg(transform.Rotation.Y + rotY);
+                mat.RotateZDeg(transform.Rotation.Z + rotZ);
+                mat.Translate(-transform.Origin.X, -transform.Origin.Y, -transform.Origin.Z);
+
+                var shader = game.guiShaderProg;
+                shader.NormalShaded = renderInfo.NormalShaded ? 1 : 0;
+                shader.RgbaIn = new Vec4f(1, 1, 1, 1);
+                shader.ApplyColor = renderInfo.ApplyColor ? 1 : 0;
+                shader.AlphaTest = renderInfo.AlphaTest;
+                shader.RgbaGlowIn = new Vec4f(0, 0, 0, 0);
+                shader.ModelMatrix = mat.Values;
+                shader.ProjectionMatrix = game.CurrentProjectionMatrix;
+                shader.ModelViewMatrix = mat.ReverseMul(game.CurrentModelViewMatrix).Values;
+                shader.ApplyModelMat = 1;
+                shader.ApplyModelMat = 0;
+                shader.NormalShaded = 0;
+                shader.AlphaTest = 0f;
+
+                capi.Render.RenderMultiTextureMesh(renderInfo.ModelRef, "tex2d");
+
+            }
+        }
 
         capi.Render.PopScissor();
-
         capi.Render.CurrentActiveShader.Uniform("lightPosition", GameMath.ONEOVERROOT2, -GameMath.ONEOVERROOT2, 0f);
-        capi.Render.GlPopMatrix();
     }
-    #endregion
 
     public override string ToggleKeyCombinationCode => "inspect";
 }
