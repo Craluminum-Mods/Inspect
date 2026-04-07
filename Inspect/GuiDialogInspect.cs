@@ -1,4 +1,5 @@
-﻿using Vintagestory.API.Client;
+﻿using System.Text;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
@@ -18,8 +19,13 @@ public class GuiDialogInspect : GuiDialog
     protected float rotX;
     protected float rotY;
     protected float rotZ;
+    protected bool showTooltip = true;
 
     public override float ZSize => (float)GuiElement.scaled(999);
+
+    public override string ToggleKeyCombinationCode => "inspect";
+    
+    public override bool CaptureAllInputs() => true;
 
     public GuiDialogInspect(ICoreClientAPI capi) : base(capi)
     {
@@ -37,6 +43,8 @@ public class GuiDialogInspect : GuiDialog
         ElementBounds childBounds = ElementBounds.Fixed(0, 0, w, h);
         insetSlotBounds = ElementBounds.Fixed(0, 0, w, h).WithAlignment(EnumDialogArea.LeftTop);
 
+        ElementBounds tooltipBounds = ElementBounds.Fixed(GuiStyle.ElementToDialogPadding * 2, GuiStyle.ElementToDialogPadding * 2, 0, 0).WithAlignment(EnumDialogArea.LeftTop);
+
         GuiComposer composer;
         Composers["inspect"] = composer = capi.Gui
             .CreateCompo("inspect", dialogBounds)
@@ -44,8 +52,18 @@ public class GuiDialogInspect : GuiDialog
 
         double[] bgColor = GuiStyle.DialogDefaultBgColor;
         bgColor[3] = 0.65f;
-
         composer.AddGameOverlay(insetSlotBounds, bgColor);
+
+        StringBuilder topText = new();
+        topText.AppendLine(Lang.Get("inspect:controls-hidetooltip"));
+        topText.AppendLine(Lang.Get("inspect:controls-reset"));
+        topText.AppendLine(Lang.Get("inspect:controls-rotate"));
+        topText.AppendLine(Lang.Get("inspect:controls-move"));
+
+        composer.AddIf(showTooltip);
+        composer.AddStaticTextAutoBoxSize(topText.ToString(), CairoFont.WhiteMediumText().WithFontSize(24), EnumTextOrientation.Left, tooltipBounds, "tooltip");
+        composer.EndIf();
+
         composer.Compose();
     }
 
@@ -58,13 +76,14 @@ public class GuiDialogInspect : GuiDialog
 
     private void ResetValues()
     {
-        charZoom = 2f;
+        charZoom = 4f;
         rotX = 0f;
         rotY = 0f;
         rotZ = 0f;
         rotateObject = false;
+        showTooltip = true;
     }
-
+    
     public override void OnMouseWheel(MouseWheelEventArgs args)
     {
         base.OnMouseWheel(args);
@@ -109,11 +128,30 @@ public class GuiDialogInspect : GuiDialog
     public override void OnKeyPress(KeyEvent args)
     {
         base.OnKeyPress(args);
-        
-        if (capi.Input.KeyboardKeyStateRaw[(int)GlKeys.Space])
+    }
+
+    public override void OnKeyDown(KeyEvent args)
+    {
+        base.OnKeyDown(args);
+
+        if (args.ShiftPressed)
+        {
+            showTooltip = !showTooltip;
+            ComposeGuis();
+            args.Handled = true;
+        }
+
+        int glKey = KeyConverter.NewKeysToGlKeys[args.KeyCode];
+
+        if ((int)GlKeys.Space == glKey)
         {
             ResetValues();
         }
+    }
+
+    public override void OnKeyUp(KeyEvent args)
+    {
+        base.OnKeyUp(args);
     }
 
     public override void OnRenderGUI(float deltaTime)
@@ -124,10 +162,10 @@ public class GuiDialogInspect : GuiDialog
         Vec4f lightRot = mat.TransformVector(lighPos);
         capi.Render.CurrentActiveShader.Uniform("lightPosition", lightRot.X, lightRot.Y, lightRot.Z);
 
-float centerX = capi.Render.FrameWidth * 0.5f;
-float centerY = capi.Render.FrameHeight * 0.5f;
-float posZ = (float)GuiElement.scaled(9999);
-float size = (float)GuiElement.scaled(100 * charZoom);
+        float centerX = capi.Render.FrameWidth * 0.5f;
+        float centerY = capi.Render.FrameHeight * 0.5f;
+        float posZ = (float)GuiElement.scaled(9999);
+        float size = (float)GuiElement.scaled(100 * charZoom);
 
         capi.Render.PushScissor(insetSlotBounds);
 
@@ -193,6 +231,4 @@ float size = (float)GuiElement.scaled(100 * charZoom);
         capi.Render.PopScissor();
         capi.Render.CurrentActiveShader.Uniform("lightPosition", GameMath.ONEOVERROOT2, -GameMath.ONEOVERROOT2, 0f);
     }
-
-    public override string ToggleKeyCombinationCode => "inspect";
 }
