@@ -3,5 +3,6 @@
     "controls-hidetooltip": "Hide tooltip:       Shift",
     "controls-reset":       "Reset:               Space",
     "controls-rotate":      "Rotate:              Left Mouse",
-    "controls-move":        "Move:                Right Mouse"
+    "controls-move":        "Move:                Right Mouse",
+    "controls-scale":       "Scale:               Mouse Wheel"
 }

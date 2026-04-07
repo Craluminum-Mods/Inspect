@@ -62,6 +62,7 @@ public class GuiDialogInspect : GuiDialog
         topText.AppendLine(Lang.Get("inspect:controls-reset"));
         topText.AppendLine(Lang.Get("inspect:controls-rotate"));
         topText.AppendLine(Lang.Get("inspect:controls-move"));
+        topText.AppendLine(Lang.Get("inspect:controls-scale"));
 
         composer.AddIf(showTooltip);
         composer.AddStaticTextAutoBoxSize(topText.ToString(), CairoFont.WhiteMediumText().WithFontSize(24), EnumTextOrientation.Left, tooltipBounds, "tooltip");
