@@ -15,10 +15,13 @@ public class GuiDialogInspect : GuiDialog
     protected ElementBounds insetSlotBounds;
 
     protected bool rotateObject;
+    protected bool offsetObject;
     protected float charZoom = 2f;
     protected float rotX;
     protected float rotY;
     protected float rotZ;
+    protected float offsetX;
+    protected float offsetY;
     protected bool showTooltip = true;
 
     public override float ZSize => (float)GuiElement.scaled(999);
@@ -80,6 +83,8 @@ public class GuiDialogInspect : GuiDialog
         rotX = 0f;
         rotY = 0f;
         rotZ = 0f;
+        offsetX = 0f;
+        offsetY = 0f;
         rotateObject = false;
         showTooltip = true;
     }
@@ -96,33 +101,53 @@ public class GuiDialogInspect : GuiDialog
     public override void OnMouseDown(MouseEvent args)
     {
         base.OnMouseDown(args);
-        rotateObject = insetSlotBounds.PointInside(args.X, args.Y);
+
+        if (insetSlotBounds.PointInside(args.X, args.Y))
+        {
+            switch (args.Button)
+            {
+                case EnumMouseButton.Left:
+                    rotateObject = true;
+                    break;
+                case EnumMouseButton.Right:
+                    offsetObject = true;
+                    break;
+            }
+        }
     }
 
     public override void OnMouseUp(MouseEvent args)
     {
         base.OnMouseUp(args);
         rotateObject = false;
+        offsetObject = false;
     }
 
     public override void OnMouseMove(MouseEvent args)
     {
         base.OnMouseMove(args);
 
-        if (!rotateObject) return;
-
-        float sensitivity = 0.4f;
-
-        if ((args.Modifiers & 1) != 0)
+        if (rotateObject)
         {
-            rotZ -= args.DeltaX * sensitivity;
-        }
-        else
-        {
-            rotY -= args.DeltaX * sensitivity;
+            float sensitivity = 0.4f;
+
+            if ((args.Modifiers & 1) != 0)
+            {
+                rotZ -= args.DeltaX * sensitivity;
+            }
+            else
+            {
+                rotY -= args.DeltaX * sensitivity;
+            }
+
+            rotX -= args.DeltaY * sensitivity;
         }
 
-        rotX -= args.DeltaY * sensitivity;
+        if (offsetObject)
+        {
+            offsetX = args.X;
+            offsetY = args.Y;
+        }
     }
 
     public override void OnKeyPress(KeyEvent args)
@@ -162,8 +187,8 @@ public class GuiDialogInspect : GuiDialog
         Vec4f lightRot = mat.TransformVector(lighPos);
         capi.Render.CurrentActiveShader.Uniform("lightPosition", lightRot.X, lightRot.Y, lightRot.Z);
 
-        float centerX = capi.Render.FrameWidth * 0.5f;
-        float centerY = capi.Render.FrameHeight * 0.5f;
+        float centerX = offsetX != 0 ? offsetX : (capi.Render.FrameWidth * 0.5f);
+        float centerY = offsetY != 0 ? offsetY : (capi.Render.FrameHeight * 0.5f);
         float posZ = (float)GuiElement.scaled(9999);
         float size = (float)GuiElement.scaled(100 * charZoom);
 
