@@ -20,8 +20,8 @@ public class GuiDialogInspect : GuiDialog
     protected float rotX;
     protected float rotY;
     protected float rotZ;
-    protected float offsetX;
-    protected float offsetY;
+    protected float? offsetX;
+    protected float? offsetY;
     protected bool showTooltip = true;
 
     public override float ZSize => (float)GuiElement.scaled(999);
@@ -145,8 +145,8 @@ public class GuiDialogInspect : GuiDialog
 
         if (offsetObject)
         {
-            offsetX = args.X;
-            offsetY = args.Y;
+            offsetX += args.DeltaX;
+            offsetY += args.DeltaY;
         }
     }
 
@@ -187,8 +187,11 @@ public class GuiDialogInspect : GuiDialog
         Vec4f lightRot = mat.TransformVector(lighPos);
         capi.Render.CurrentActiveShader.Uniform("lightPosition", lightRot.X, lightRot.Y, lightRot.Z);
 
-        float centerX = offsetX != 0 ? offsetX : (capi.Render.FrameWidth * 0.5f);
-        float centerY = offsetY != 0 ? offsetY : (capi.Render.FrameHeight * 0.5f);
+        var frameWidth = capi.Render.FrameWidth * 0.5f;
+        var frameHeight = capi.Render.FrameHeight * 0.5f;
+
+        float centerX = offsetX != null ? offsetX.Value + frameWidth : frameWidth;
+        float centerY = offsetY != null ? offsetY.Value + frameHeight : frameHeight;
         float posZ = (float)GuiElement.scaled(9999);
         float size = (float)GuiElement.scaled(100 * charZoom);
 
