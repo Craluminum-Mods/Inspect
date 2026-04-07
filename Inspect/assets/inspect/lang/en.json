@@ -1,11 +1,11 @@
 {
     "hotkey-toggle": "Inspect Held Item or Block",
     "hotkey-toggle-for-block": "Inspect Placed Block",
-    "hotkey-hidetooltip":     "inspect: Hide Tooltip",
-    "hotkey-reset":           "inspect: Reset View",
-    "hotkey-zoom-in":         "inspect: Zoom In",
-    "hotkey-zoom-out":        "inspect: Zoom Out",
-    "hotkey-autorotate":      "inspect: Toggle Auto Rotate",
+    "hotkey-hidetooltip":     "Inspect: Hide Tooltip",
+    "hotkey-reset":           "Inspect: Reset View",
+    "hotkey-zoom-in":         "Inspect: Zoom In",
+    "hotkey-zoom-out":        "Inspect: Zoom Out",
+    "hotkey-autorotate":      "Inspect: Toggle Auto Rotate",
 
     "tooltip-hidetooltip":     "Hide Tooltip:      <hk>inspect:hidetooltip</hk>",
     "tooltip-reset":           "Reset View:      <hk>inspect:reset</hk>",
