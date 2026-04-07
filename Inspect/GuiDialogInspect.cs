@@ -153,6 +153,13 @@ public class GuiDialogInspect : GuiDialog
     public override void OnKeyPress(KeyEvent args)
     {
         base.OnKeyPress(args);
+
+        int glKey = KeyConverter.NewKeysToGlKeys[args.KeyCode];
+
+        if ((int)GlKeys.Space == glKey)
+        {
+            ResetValues();
+        }
     }
 
     public override void OnKeyDown(KeyEvent args)
@@ -164,13 +171,6 @@ public class GuiDialogInspect : GuiDialog
             showTooltip = !showTooltip;
             ComposeGuis();
             args.Handled = true;
-        }
-
-        int glKey = KeyConverter.NewKeysToGlKeys[args.KeyCode];
-
-        if ((int)GlKeys.Space == glKey)
-        {
-            ResetValues();
         }
     }
 
