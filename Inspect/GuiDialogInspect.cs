@@ -23,6 +23,8 @@ public class GuiDialogInspect : GuiDialog
     protected float? offsetX;
     protected float? offsetY;
     protected bool showTooltip = true;
+    protected bool autoRotation = true;
+    protected float? autoRotationDelayInMs;
 
     public override float ZSize => (float)GuiElement.scaled(999);
 
@@ -62,7 +64,8 @@ public class GuiDialogInspect : GuiDialog
         topText.AppendLine(Lang.Get("inspect:controls-reset"));
         topText.AppendLine(Lang.Get("inspect:controls-rotate"));
         topText.AppendLine(Lang.Get("inspect:controls-move"));
-        topText.AppendLine(Lang.Get("inspect:controls-scale"));
+        topText.AppendLine(Lang.Get("inspect:controls-zoom"));
+        topText.AppendLine(Lang.Get("inspect:controls-autorotate"));
 
         composer.AddIf(showTooltip);
         composer.AddStaticTextAutoBoxSize(topText.ToString(), CairoFont.WhiteMediumText().WithFontSize(24), EnumTextOrientation.Left, tooltipBounds, "tooltip");
@@ -88,6 +91,8 @@ public class GuiDialogInspect : GuiDialog
         offsetY = 0f;
         rotateObject = false;
         showTooltip = true;
+        autoRotation = true;
+        autoRotationDelayInMs = null;
     }
     
     public override void OnMouseWheel(MouseWheelEventArgs args)
@@ -130,6 +135,9 @@ public class GuiDialogInspect : GuiDialog
 
         if (rotateObject)
         {
+            autoRotation = false;
+            autoRotationDelayInMs = 2000;
+
             float sensitivity = 0.4f;
 
             if ((args.Modifiers & 1) != 0)
@@ -146,6 +154,9 @@ public class GuiDialogInspect : GuiDialog
 
         if (offsetObject)
         {
+            autoRotation = false;
+            autoRotationDelayInMs = 2000;
+
             offsetX += args.DeltaX;
             offsetY += args.DeltaY;
         }
@@ -157,9 +168,12 @@ public class GuiDialogInspect : GuiDialog
 
         int glKey = KeyConverter.NewKeysToGlKeys[args.KeyCode];
 
-        if ((int)GlKeys.Space == glKey)
+        switch (glKey)
         {
-            ResetValues();
+            case (int)GlKeys.Space:
+                ResetValues();
+                args.Handled = true;
+                break;
         }
     }
 
@@ -173,6 +187,15 @@ public class GuiDialogInspect : GuiDialog
             ComposeGuis();
             args.Handled = true;
         }
+
+        switch (args.KeyCode)
+        {
+            case (int)GlKeys.R:
+                autoRotation = !autoRotation;
+                autoRotationDelayInMs = null;
+                args.Handled = true;
+                break;
+        }
     }
 
     public override void OnKeyUp(KeyEvent args)
@@ -183,6 +206,24 @@ public class GuiDialogInspect : GuiDialog
     public override void OnRenderGUI(float deltaTime)
     {
         base.OnRenderGUI(deltaTime);
+
+        if (autoRotationDelayInMs != null)
+        {
+            autoRotationDelayInMs -= deltaTime * 1000;
+            
+            if (autoRotationDelayInMs < 0)
+            {
+                autoRotationDelayInMs = null;
+                autoRotation = true;
+            }
+        }
+
+        if (autoRotation)
+        {
+            rotX += 0.05f;
+            rotY += 0.05f;
+            rotZ += 0.05f;
+        }
 
         mat.Identity().RotateXDeg(-14);
         Vec4f lightRot = mat.TransformVector(lighPos);

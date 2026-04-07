@@ -1,8 +1,9 @@
 {
     "hotkey-inspect": "Inspect a held item / block",
-    "controls-hidetooltip": "Hide tooltip:       Shift",
-    "controls-reset":       "Reset:               Space",
-    "controls-rotate":      "Rotate:              Left Mouse",
-    "controls-move":        "Move:                Right Mouse",
-    "controls-scale":       "Scale:               Mouse Wheel"
+    "controls-hidetooltip": "Hide Tooltip:                        Shift",
+    "controls-reset":       "Reset View:                         Space",
+    "controls-rotate":      "Rotate:                                Left Mouse",
+    "controls-move":        "Move:                                  Right Mouse",
+    "controls-zoom":        "Zoom:                                  Mouse Wheel",
+    "controls-autorotate":  "Toggle Auto Rotate:             R"
 }
