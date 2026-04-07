@@ -230,6 +230,8 @@ public class GuiDialogInspect : GuiDialog
         {
             rotY += deltaTime * 20f;
             rotX += (float)Math.Cos(capi.InWorldEllapsedMilliseconds / 1000f) * deltaTime * 5f;
+            rotY %= 360f;
+            rotX %= 360f;
         }
 
         mat.Identity().RotateXDeg(-14);
