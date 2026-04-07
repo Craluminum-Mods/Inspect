@@ -19,7 +19,8 @@ public class GuiDialogInspect : GuiDialog
 #nullable enable
     protected bool rotateObject;
     protected bool offsetObject;
-    protected float charZoom = 2f;
+    protected float currentZoom = 2f;
+    protected float targetZoom = 2f;
     protected float rotX;
     protected float rotY;
     protected float rotZ;
@@ -83,7 +84,11 @@ public class GuiDialogInspect : GuiDialog
         composer?.GetRichtext("tooltip")?.CalcHeightAndPositions();
     }
 
-    public override void OnGuiOpened() => ComposeGuis();
+    public override void OnGuiOpened()
+    {
+        showTooltip = true;
+        ComposeGuis();
+    }
 
     public override void OnGuiClosed()
     {
@@ -93,7 +98,8 @@ public class GuiDialogInspect : GuiDialog
 
     private void ResetValues()
     {
-        charZoom = 4f;
+        currentZoom = 4f;
+        targetZoom = 4f;
         rotX = 0f;
         rotY = 0f;
         rotZ = 0f;
@@ -101,7 +107,6 @@ public class GuiDialogInspect : GuiDialog
         offsetY = 0f;
         rotateObject = false;
         offsetObject = false;
-        showTooltip = true;
     }
 
     private void ResetAutoRotation()
@@ -113,7 +118,7 @@ public class GuiDialogInspect : GuiDialog
     public override void OnMouseWheel(MouseWheelEventArgs args)
     {
         base.OnMouseWheel(args);
-        charZoom = GameMath.Clamp(charZoom + args.deltaPrecise / 5f, 0.5f, 10f);
+        targetZoom = GameMath.Clamp(targetZoom + args.deltaPrecise / 2f, 0.5f, 10f);
         args.SetHandled(true);
     }
 
@@ -224,13 +229,13 @@ public class GuiDialogInspect : GuiDialog
 
     private bool OnZoomIn()
     {
-        charZoom = GameMath.Clamp(charZoom + 10 / 5f, 0.5f, 10f);
+        targetZoom = GameMath.Clamp(targetZoom + 1f, 0.5f, 10f);
         return true;
     }
 
     private bool OnZoomOut()
     {
-        charZoom = GameMath.Clamp(charZoom - 10 / 5f, 0.5f, 10f);
+        targetZoom = GameMath.Clamp(targetZoom - 1f, 0.5f, 10f);
         return true;
     }
 
@@ -249,6 +254,8 @@ public class GuiDialogInspect : GuiDialog
     public override void OnRenderGUI(float deltaTime)
     {
         base.OnRenderGUI(deltaTime);
+
+        currentZoom += (targetZoom - currentZoom) * deltaTime * 5f;
 
         if (autoRotationDelayInMs != null)
         {
@@ -279,7 +286,7 @@ public class GuiDialogInspect : GuiDialog
         float centerX = (float)offsetX + frameWidth;
         float centerY = (float)offsetY + frameHeight;
         float posZ = (float)GuiElement.scaled(9999);
-        float size = (float)GuiElement.scaled(100 * charZoom);
+        float size = (float)GuiElement.scaled(100 * currentZoom);
 
         capi.Render.PushScissor(insetSlotBounds);
 
