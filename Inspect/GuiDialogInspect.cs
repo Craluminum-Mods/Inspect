@@ -53,6 +53,11 @@ public class GuiDialogInspect : GuiDialog
 
     public override void OnGuiClosed()
     {
+        ResetValues();
+    }
+
+    private void ResetValues()
+    {
         charZoom = 2f;
         rotX = 0f;
         rotY = 0f;
@@ -99,6 +104,16 @@ public class GuiDialogInspect : GuiDialog
         }
 
         rotX -= args.DeltaY * sensitivity;
+    }
+
+    public override void OnKeyPress(KeyEvent args)
+    {
+        base.OnKeyPress(args);
+        
+        if (capi.Input.KeyboardKeyStateRaw[(int)GlKeys.Space])
+        {
+            ResetValues();
+        }
     }
 
     public override void OnRenderGUI(float deltaTime)
