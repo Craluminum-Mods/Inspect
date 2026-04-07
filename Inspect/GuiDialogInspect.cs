@@ -82,6 +82,7 @@ public class GuiDialogInspect : GuiDialog
     public override void OnGuiClosed()
     {
         ResetValues();
+        ResetAutoRotation();
     }
 
     private void ResetValues()
@@ -94,6 +95,10 @@ public class GuiDialogInspect : GuiDialog
         offsetY = 0f;
         rotateObject = false;
         showTooltip = true;
+    }
+
+    private void ResetAutoRotation()
+    {
         autoRotation = true;
         autoRotationDelayInMs = null;
     }
