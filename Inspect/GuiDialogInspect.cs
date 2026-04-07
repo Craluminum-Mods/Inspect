@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -220,9 +221,8 @@ public class GuiDialogInspect : GuiDialog
 
         if (autoRotation)
         {
-            rotX += 0.05f;
-            rotY += 0.05f;
-            rotZ += 0.05f;
+            rotY += deltaTime * 20f;
+            rotX = 10f * (float)Math.Sin(capi.InWorldEllapsedMilliseconds / 1000f);
         }
 
         mat.Identity().RotateXDeg(-14);
