@@ -34,7 +34,7 @@ public class GuiDialogInspect : GuiDialog
 
     public override float ZSize => (float)GuiElement.scaled(999);
 
-    public override string ToggleKeyCombinationCode => "inspect:toggle";
+    public override string? ToggleKeyCombinationCode => null;
     
     public override bool PrefersUngrabbedMouse => false;
 
@@ -86,12 +86,14 @@ public class GuiDialogInspect : GuiDialog
 
     public override void OnGuiOpened()
     {
+        forStack = null;
         showTooltip = true;
         ComposeGuis();
     }
 
     public override void OnGuiClosed()
     {
+        forStack = null;
         ResetValues();
         ResetAutoRotation();
     }
@@ -189,6 +191,13 @@ public class GuiDialogInspect : GuiDialog
     {
         base.OnKeyDown(args);
 
+        HotKey dialogHotkey = capi.Input.GetHotKeyByCode("inspect:toggle");
+        if (dialogHotkey != null && dialogHotkey.DidPress(args, capi.World, capi.World.Player, allowCharacterControls: true) && TryClose())
+        {
+            args.Handled = true;
+            return;
+        }
+
         Dictionary<string, Func<bool>> hotkeys = new()
         {
             { "inspect:hidetooltip", OnHideTooltip },
@@ -203,13 +212,15 @@ public class GuiDialogInspect : GuiDialog
             HotKey hotkey = capi.Input.GetHotKeyByCode(hotkeyCode);
             if (hotkey == null) continue;
 
-            if (hotkey.DidPress(args, capi.World, capi.World.Player, allowCharacterControls: true))
+            if (hotkey.DidPress(args, capi.World, capi.World.Player, allowCharacterControls: true) && func.Invoke())
             {
-                args.Handled = func.Invoke();
+                args.Handled = true;
+                return;
             }
-            else if (hotkey.FallbackDidPress(args, capi.World, capi.World.Player, allowCharacterControls: true))
+            else if (hotkey.FallbackDidPress(args, capi.World, capi.World.Player, allowCharacterControls: true) && func.Invoke())
             {
-                args.Handled = func.Invoke();
+                args.Handled = true;
+                return;
             }
         }
     }
@@ -243,6 +254,36 @@ public class GuiDialogInspect : GuiDialog
     {
         autoRotation = !autoRotation;
         autoRotationDelayInMs = null;
+        return true;
+    }
+
+    public override void OnBlockTexturesLoaded()
+    {
+        base.OnBlockTexturesLoaded();
+
+        capi.Input.SetHotKeyHandler("inspect:toggle", ToggleGui);
+        capi.Input.SetHotKeyHandler("inspect:toggle-for-block", ToggleGuiForSelectedBlock);
+    }
+
+    ItemStack? forStack;
+
+    public bool ToggleGui(KeyCombination k)
+    {
+        Toggle();
+        if (!capi.World.Player.InventoryManager.ActiveHotbarSlot.Empty)
+        {
+            forStack = capi.World.Player.InventoryManager.ActiveHotbarSlot.Itemstack?.Clone();
+        }
+        return true;
+    }
+
+    public bool ToggleGuiForSelectedBlock(KeyCombination k)
+    {
+        Toggle();
+        if (capi.World.Player.CurrentBlockSelection != null)
+        {
+            forStack = capi.World.Player.CurrentBlockSelection.Block.OnPickBlock(capi.World, capi.World.Player.CurrentBlockSelection.Position)?.Clone();
+        }
         return true;
     }
 
@@ -290,7 +331,10 @@ public class GuiDialogInspect : GuiDialog
 
         capi.Render.PushScissor(insetSlotBounds);
 
-        ItemSlot slot = capi.World.Player.InventoryManager.ActiveHotbarSlot;
+        //ItemSlot slot = capi.World.Player.InventoryManager.ActiveHotbarSlot;
+        //ItemStack? itemstack = slot.Itemstack;
+
+        DummySlot slot = new DummySlot(forStack);
         ItemStack? itemstack = slot.Itemstack;
 
         if (itemstack != null)

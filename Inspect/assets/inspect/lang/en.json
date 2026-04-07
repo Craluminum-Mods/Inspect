@@ -1,5 +1,6 @@
 {
     "hotkey-toggle": "Inspect a held item / block",
+    "hotkey-toggle-for-block": "Inspect a placed block",
     "hotkey-hidetooltip":     "inspect: Hide Tooltip",
     "hotkey-reset":           "inspect: Reset View",
     "hotkey-zoom-in":         "inspect: Zoom In",
