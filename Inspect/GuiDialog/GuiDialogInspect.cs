@@ -6,6 +6,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.Client.NoObf;
+using Vintagestory.GameContent;
 
 namespace Inspect;
 
@@ -308,12 +309,29 @@ public class GuiDialogInspect : GuiDialog
 
     public bool ToggleGuiForSelectedBlock(KeyCombination k)
     {
-        if (capi.World.Player.CurrentBlockSelection != null)
+        BlockSelection blockSel = capi.World.Player.CurrentBlockSelection;
+        if (blockSel == null)
         {
-            forStack = capi.World.Player.CurrentBlockSelection.Block.OnPickBlock(capi.World, capi.World.Player.CurrentBlockSelection.Position)?.Clone();
+            return false;
+        }
+
+        if (capi.World.BlockAccessor.GetBlockEntity(blockSel.Position) is BlockEntityGroundStorage begs && begs.GetSlotAt(blockSel) is ItemSlot slot && !slot.Empty)
+        {
+            forStack = slot.Itemstack.Clone();
             Toggle();
             return true;
         }
+        else
+        {
+            ItemStack? blockStack = blockSel.Block.OnPickBlock(capi.World, blockSel.Position)?.Clone();
+            if (blockStack != null)
+            {
+                forStack = blockStack;
+                Toggle();
+                return true;
+            }
+        }
+
         return false;
     }
 
