@@ -103,8 +103,8 @@ public class GuiDialogInspect : GuiDialog
 
     private void ResetValues()
     {
-        currentZoom = 4f;
-        targetZoom = 4f;
+        currentZoom = 2f;
+        targetZoom = 2f;
         rotX = 0f;
         rotY = 0f;
         rotZ = 0f;
