@@ -44,8 +44,9 @@ public class GuiDialogInspect : GuiDialog
     public override double DrawOrder => 0.889;
     public override string? ToggleKeyCombinationCode => null;
     
-    public override bool PrefersUngrabbedMouse => false;
-
+    public override bool PrefersUngrabbedMouse => true;
+    public override bool DisableMouseGrab => true;
+    public override double InputOrder => 0;
     public override bool CaptureAllInputs() => true;
 
     private readonly Dictionary<string, Func<bool>> dialogHotkeys;
