@@ -47,7 +47,7 @@ public class GuiDialogInspect : GuiDialog
     public override float ZSize => 999;
     public override double DrawOrder => 0.889;
     public override string? ToggleKeyCombinationCode => null;
-    
+
     public override bool PrefersUngrabbedMouse => true;
     public override bool DisableMouseGrab => true;
     public override double InputOrder => 0;
@@ -159,7 +159,7 @@ public class GuiDialogInspect : GuiDialog
         autoRotation = true;
         rotationDelayInMs = null;
     }
-    
+
     public override void OnMouseWheel(MouseWheelEventArgs args)
     {
         base.OnMouseWheel(args);
@@ -366,7 +366,7 @@ public class GuiDialogInspect : GuiDialog
         if (rotationDelayInMs != null)
         {
             rotationDelayInMs -= (int)(deltaTime * 1000);
-            
+
             if (rotationDelayInMs < 0)
             {
                 rotationDelayInMs = null;
@@ -395,9 +395,8 @@ public class GuiDialogInspect : GuiDialog
         float centerX = (float)offsetX + frameWidth;
         float centerY = (float)offsetY + frameHeight;
         float posZ = (float)GuiElement.scaled(250);
-        float size = (float)GuiElement.scaled(100 * currentZoom);
-        float entitySize = (float)GuiElement.scaled(80f * currentZoom);
-
+        float size = (float)GuiElement.scaled(100 * currentZoom) / RuntimeEnv.GUIScale;
+        float entitySize = size;
 
         Entity? forEntity = forEntityId != null ? capi.World.GetEntityById(forEntityId.Value) : null;
         if (forEntity != null)
