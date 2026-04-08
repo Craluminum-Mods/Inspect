@@ -300,19 +300,19 @@ public class GuiDialogInspect : GuiDialog
             return true;
         }
 
+        if (forStack != null)
+        {
+            TryOpen();
+            return true;
+        }
+
         ClientMain game = (ClientMain)capi.World;
         BlockSelection? tempBlockSel = null;
         EntitySelection? tempEntitySel = null;
         game.RayTraceForSelection(game.player.Entity.Pos.XYZ.Add(game.player.Entity.LocalEyePos), game.player.Entity.Pos.Pitch, game.player.Entity.Pos.Yaw, 100, ref tempBlockSel, ref tempEntitySel, null, null);
         if (tempEntitySel != null)
         {
-            TryOpen();
             forEntityId = tempEntitySel.Entity.EntityId;
-            return true;
-        }
-
-        if (forStack != null)
-        {
             TryOpen();
             return true;
         }
