@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.Client.NoObf;
@@ -14,6 +15,7 @@ public class GuiDialogInspect : GuiDialog
 {
     public static bool LockStack { get; private set; } = false;
     private static ItemStack? forStack;
+    private static long? forEntityId;
 
     public const int DEFAULT_ROTATION_DELAY_IN_MS = 1500;
     public const float DEFAULT_ZOOM = 4f;
@@ -128,6 +130,7 @@ public class GuiDialogInspect : GuiDialog
     public override void OnGuiClosed()
     {
         forStack = null;
+        forEntityId = null;
         ResetValues();
         ResetAutoRotation();
         LockStack = false;
@@ -292,6 +295,17 @@ public class GuiDialogInspect : GuiDialog
             return true;
         }
 
+        ClientMain game = (ClientMain)capi.World;
+        BlockSelection? tempBlockSel = null;
+        EntitySelection? tempEntitySel = null;
+        game.RayTraceForSelection(game.player.Entity.Pos.XYZ.Add(game.player.Entity.LocalEyePos), game.player.Entity.Pos.Pitch, game.player.Entity.Pos.Yaw, 100, ref tempBlockSel, ref tempEntitySel, null, null);
+        if (tempEntitySel != null)
+        {
+            TryOpen();
+            forEntityId = tempEntitySel.Entity.EntityId;
+            return true;
+        }
+
         if (forStack != null)
         {
             TryOpen();
@@ -376,6 +390,54 @@ public class GuiDialogInspect : GuiDialog
         float size = (float)GuiElement.scaled(100 * currentZoom);
 
         capi.Render.PushScissor(insetSlotBounds);
+
+        Entity? forEntity = forEntityId != null ? capi.World.GetEntityById(forEntityId.Value) : null;
+        if (forEntity != null)
+        {
+            forStack = null;
+
+            ClientMain game = (ClientMain)capi.World;
+            ModelTransform transform = ModelTransform.ItemDefaultGui();
+
+            float itemOffsetX = 3f;
+            float itemOffsetY = 1f;
+            float originX = (float)(transform.Origin.X + GuiElement.scaled(transform.Translation.X));
+            float originY = (float)(transform.Origin.Y + GuiElement.scaled(transform.Translation.Y));
+            float originZ = (float)(transform.Origin.Z * size + GuiElement.scaled(transform.Translation.Z));
+
+            mat.Identity();
+            mat.Translate(
+                centerX - itemOffsetX - originX,
+                centerY - itemOffsetY - originY,
+                posZ
+            );
+            mat.Translate(originX, originY, originZ);
+
+            mat.Scale(
+                size * transform.ScaleXYZ.X,
+                size * transform.ScaleXYZ.Y,
+                size * transform.ScaleXYZ.Z
+            );
+            mat.RotateXDeg(transform.Rotation.X + rotX + 180f);
+            mat.RotateYDeg(transform.Rotation.Y + rotY);
+            mat.RotateZDeg(transform.Rotation.Z + rotZ);
+            mat.Translate(-transform.Origin.X, -transform.Origin.Y, -transform.Origin.Z);
+
+            var shader = game.guiShaderProg;
+            shader.NormalShaded = 1;
+            shader.RgbaIn = new Vec4f(1, 1, 1, 1);
+            shader.ApplyColor = 1;
+            shader.RgbaGlowIn = new Vec4f(0, 0, 0, 0);
+            shader.ModelMatrix = mat.Values;
+            shader.ProjectionMatrix = game.CurrentProjectionMatrix;
+            shader.ModelViewMatrix = mat.ReverseMul(game.CurrentModelViewMatrix).Values;
+            shader.ApplyModelMat = 1;
+
+            capi.Render.RenderEntityToGui(deltaTime, forEntity, centerX, centerY, posZ, rotY / 30, size, -1);
+            shader.ApplyModelMat = 0;
+            shader.NormalShaded = 0;
+            shader.AlphaTest = 0f;
+        }
 
         DummySlot slot = new DummySlot(forStack);
         ItemStack? itemstack = slot.Itemstack;
