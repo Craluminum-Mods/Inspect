@@ -10,7 +10,7 @@ public static class SlideshowGridRecipeTextComponent_Patch
     [HarmonyPostfix]
     public static void Postfix(SlideshowGridRecipeTextComponent __instance, float deltaTime, double renderX, double renderY, double renderZ, ICoreClientAPI ___capi, int ___currentItemIndex, double ___size, int[][,] ___variantDisplaySequence, int ___secondCounter)
     {
-        if (GuiDialogInspect.lockStack) return;
+        if (GuiDialogInspect.LockStack) return;
 
         LineRectangled bounds = __instance.BoundsPerLine[0];
 
@@ -51,7 +51,7 @@ public static class SlideshowGridRecipeTextComponent_Patch
 
                 if (dx >= 0 && dx < ___size && dy >= 0 && dy < ___size)
                 {
-                    GuiDialogInspect.forStack = dummySlot?.Itemstack;
+                    GuiDialogInspect.SetStack(dummySlot?.Itemstack?.Clone());
                 }
             }
         }

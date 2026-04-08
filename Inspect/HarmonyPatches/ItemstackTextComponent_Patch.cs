@@ -10,7 +10,7 @@ public static class ItemstackTextComponent_Patch
     [HarmonyPostfix]
     public static void Postfix(ItemstackTextComponent __instance, float deltaTime, double renderX, double renderY, double renderZ, ICoreClientAPI ___capi, DummySlot ___slot)
     {
-        if (GuiDialogInspect.lockStack) return;
+        if (GuiDialogInspect.LockStack) return;
 
         LineRectangled bounds = __instance.BoundsPerLine[0];
         int relx = (int)(___capi.Input.MouseX - renderX);
@@ -18,7 +18,7 @@ public static class ItemstackTextComponent_Patch
 
         if (bounds.PointInside(relx, rely))
         {
-            GuiDialogInspect.forStack = (___slot?.Itemstack?.Clone());
+            GuiDialogInspect.SetStack(___slot?.Itemstack?.Clone());
         }
     }
 }

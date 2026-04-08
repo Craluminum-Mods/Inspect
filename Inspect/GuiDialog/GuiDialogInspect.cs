@@ -11,28 +11,33 @@ namespace Inspect;
 
 public class GuiDialogInspect : GuiDialog
 {
-    Vec4f lighPos = new Vec4f(-1, -1, 0, 0).NormalizeXYZ();
-    Matrixf mat = new Matrixf();
+    public static bool LockStack { get; private set; } = false;
+    private static ItemStack? forStack;
 
-    public static bool lockStack = false;
-    public static ItemStack? forStack;
-#nullable disable
-    protected ElementBounds insetSlotBounds;
-#nullable enable
-    protected bool rotateObject;
+    public const int DEFAULT_ROTATION_DELAY_IN_MS = 1500;
+    public const float DEFAULT_ZOOM = 4f;
+    public const float MOUSE_SENSITIVITY = 0.4f;
+
+    Vec4f lightPos = new Vec4f(-1, -1, 0, 0).NormalizeXYZ();
+    Matrixf mat = new();
+
+    protected ElementBounds? insetSlotBounds;
+
+    protected bool showTooltip = true;
+
+    protected float currentZoom = DEFAULT_ZOOM;
+    protected float targetZoom = DEFAULT_ZOOM;
+
     protected bool offsetObject;
-    protected float currentZoom = 2f;
-    protected float targetZoom = 2f;
+    protected float offsetX;
+    protected float offsetY;
+
+    protected bool rotateObject;
     protected float rotX;
     protected float rotY;
     protected float rotZ;
-    protected float offsetX;
-    protected float offsetY;
-    protected bool showTooltip = true;
     protected bool autoRotation = true;
-    protected float? autoRotationDelayInMs;
-
-    public const float AUTO_ROTATION_DELAY_IN_MS = 1500;
+    protected int? rotationDelayInMs;
 
     public override float ZSize => 999;
     public override double DrawOrder => 0.889;
@@ -42,11 +47,28 @@ public class GuiDialogInspect : GuiDialog
 
     public override bool CaptureAllInputs() => true;
 
+    private readonly Dictionary<string, Func<bool>> dialogHotkeys;
+
     public GuiDialogInspect(ICoreClientAPI capi) : base(capi)
     {
         (capi.World as ClientMain)?.Platform.WindowResized += Platform_WindowResized;
+
+        dialogHotkeys = new()
+        {
+            { "inspect:hidetooltip", OnHideTooltip },
+            { "inspect:reset", OnResetValues },
+            { "inspect:zoom-in", OnZoomIn },
+            { "inspect:zoom-out", OnZoomOut },
+            { "inspect:autorotate", OnToggleAutoRotate }
+        };
     }
-    
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        (capi.World as ClientMain)?.Platform.WindowResized -= Platform_WindowResized;
+    }
+
     private void Platform_WindowResized(int nowWidth, int nowHeight) => ComposeGuis();
 
     protected void ComposeGuis()
@@ -86,11 +108,19 @@ public class GuiDialogInspect : GuiDialog
         composer?.GetRichtext("tooltip")?.CalcHeightAndPositions();
     }
 
+    public static void SetStack(ItemStack? fromStack)
+    {
+        if (!LockStack && fromStack != null)
+        {
+            forStack = fromStack.Clone();
+        }
+    }
+
     public override void OnGuiOpened()
     {
         showTooltip = true;
         ComposeGuis();
-        lockStack = true;
+        LockStack = true;
     }
 
     public override void OnGuiClosed()
@@ -98,13 +128,13 @@ public class GuiDialogInspect : GuiDialog
         forStack = null;
         ResetValues();
         ResetAutoRotation();
-        lockStack = false;
+        LockStack = false;
     }
 
     private void ResetValues()
     {
-        currentZoom = 2f;
-        targetZoom = 2f;
+        currentZoom = DEFAULT_ZOOM;
+        targetZoom = DEFAULT_ZOOM;
         rotX = 0f;
         rotY = 0f;
         rotZ = 0f;
@@ -117,7 +147,7 @@ public class GuiDialogInspect : GuiDialog
     private void ResetAutoRotation()
     {
         autoRotation = true;
-        autoRotationDelayInMs = null;
+        rotationDelayInMs = null;
     }
     
     public override void OnMouseWheel(MouseWheelEventArgs args)
@@ -131,7 +161,7 @@ public class GuiDialogInspect : GuiDialog
     {
         base.OnMouseDown(args);
 
-        if (insetSlotBounds.PointInside(args.X, args.Y))
+        if (insetSlotBounds?.PointInside(args.X, args.Y) == true)
         {
             switch (args.Button)
             {
@@ -159,35 +189,28 @@ public class GuiDialogInspect : GuiDialog
         if (rotateObject)
         {
             autoRotation = false;
-            autoRotationDelayInMs = AUTO_ROTATION_DELAY_IN_MS;
-
-            float sensitivity = 0.4f;
+            rotationDelayInMs = DEFAULT_ROTATION_DELAY_IN_MS;
 
             if ((args.Modifiers & 1) != 0)
             {
-                rotZ -= args.DeltaX * sensitivity;
+                rotZ -= args.DeltaX * MOUSE_SENSITIVITY;
             }
             else
             {
-                rotY -= args.DeltaX * sensitivity;
+                rotY -= args.DeltaX * MOUSE_SENSITIVITY;
             }
 
-            rotX -= args.DeltaY * sensitivity;
+            rotX -= args.DeltaY * MOUSE_SENSITIVITY;
         }
 
         if (offsetObject)
         {
             autoRotation = false;
-            autoRotationDelayInMs = AUTO_ROTATION_DELAY_IN_MS;
+            rotationDelayInMs = DEFAULT_ROTATION_DELAY_IN_MS;
 
             offsetX += args.DeltaX;
             offsetY += args.DeltaY;
         }
-    }
-
-    public override void OnKeyPress(KeyEvent args)
-    {
-        base.OnKeyPress(args);
     }
 
     public override void OnKeyDown(KeyEvent args)
@@ -201,16 +224,7 @@ public class GuiDialogInspect : GuiDialog
             return;
         }
 
-        Dictionary<string, Func<bool>> hotkeys = new()
-        {
-            { "inspect:hidetooltip", OnHideTooltip },
-            { "inspect:reset", OnResetValues },
-            { "inspect:zoom-in", OnZoomIn },
-            { "inspect:zoom-out", OnZoomOut },
-            { "inspect:autorotate", OnToggleAutoRotate }
-        };
-
-        foreach ((string hotkeyCode, Func<bool> func) in hotkeys)
+        foreach ((string hotkeyCode, Func<bool> func) in dialogHotkeys)
         {
             HotKey hotkey = capi.Input.GetHotKeyByCode(hotkeyCode);
             if (hotkey == null) continue;
@@ -238,8 +252,6 @@ public class GuiDialogInspect : GuiDialog
     private bool OnResetValues()
     {
         ResetValues();
-        autoRotation = false;
-        autoRotationDelayInMs = AUTO_ROTATION_DELAY_IN_MS;
         return true;
     }
 
@@ -258,7 +270,7 @@ public class GuiDialogInspect : GuiDialog
     private bool OnToggleAutoRotate()
     {
         autoRotation = !autoRotation;
-        autoRotationDelayInMs = null;
+        rotationDelayInMs = null;
         return true;
     }
 
@@ -272,19 +284,25 @@ public class GuiDialogInspect : GuiDialog
 
     public bool ToggleGui(KeyCombination k)
     {
-        if (forStack != null)
+        if (IsOpened())
         {
             Toggle();
-            forStack = forStack?.Clone();
+            return true;
+        }
+
+        if (forStack != null)
+        {
+            TryOpen();
             return true;
         }
 
         if (!capi.World.Player.InventoryManager.ActiveHotbarSlot.Empty)
         {
-            Toggle();
             forStack = capi.World.Player.InventoryManager.ActiveHotbarSlot.Itemstack?.Clone();
+            TryOpen();
             return true;
         }
+
         return false;
     }
 
@@ -292,31 +310,28 @@ public class GuiDialogInspect : GuiDialog
     {
         if (capi.World.Player.CurrentBlockSelection != null)
         {
-            Toggle();
             forStack = capi.World.Player.CurrentBlockSelection.Block.OnPickBlock(capi.World, capi.World.Player.CurrentBlockSelection.Position)?.Clone();
+            Toggle();
             return true;
         }
         return false;
-    }
-
-    public override void OnKeyUp(KeyEvent args)
-    {
-        base.OnKeyUp(args);
     }
 
     public override void OnRenderGUI(float deltaTime)
     {
         base.OnRenderGUI(deltaTime);
 
+        if (insetSlotBounds == null) return;
+
         currentZoom += (targetZoom - currentZoom) * deltaTime * 5f;
 
-        if (autoRotationDelayInMs != null)
+        if (rotationDelayInMs != null)
         {
-            autoRotationDelayInMs -= deltaTime * 1000;
+            rotationDelayInMs -= (int)(deltaTime * 1000);
             
-            if (autoRotationDelayInMs < 0)
+            if (rotationDelayInMs < 0)
             {
-                autoRotationDelayInMs = null;
+                rotationDelayInMs = null;
                 autoRotation = true;
             }
         }
@@ -330,7 +345,7 @@ public class GuiDialogInspect : GuiDialog
         }
 
         mat.Identity().RotateXDeg(-14);
-        Vec4f lightRot = mat.TransformVector(lighPos);
+        Vec4f lightRot = mat.TransformVector(lightPos);
         capi.Render.CurrentActiveShader.Uniform("lightPosition", lightRot.X, lightRot.Y, lightRot.Z);
 
         var frameWidth = capi.Render.FrameWidth * 0.5f;
