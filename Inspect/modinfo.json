@@ -4,8 +4,8 @@
     "side": "Client",
     "modid": "inspect",
     "name": "Inspect",
-    "authors": [ "Craluminum2413 (Dana)" ],
-    "description": "Inspect any held item or block",
+    "authors": [ "Craluminum2413 (Dana)", "SaltyWater" ],
+    "description": "Inspect any item/block that is held, placed or in handbook",
     "version": "1.0.0",
     "dependencies": {
         "game": "1.22.0-pre.1"
