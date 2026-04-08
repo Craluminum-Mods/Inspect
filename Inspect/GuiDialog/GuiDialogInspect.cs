@@ -16,6 +16,8 @@ public class GuiDialogInspect : GuiDialog
     public static bool LockStack { get; private set; } = false;
     private static ItemStack? forStack;
     private static long? forEntityId;
+    public static bool EntityGuiTransformPatchActive { get; private set; }
+    public static float EntityGuiPitchDeg { get; private set; }
 
     public const int DEFAULT_ROTATION_DELAY_IN_MS = 1500;
     public const float DEFAULT_ZOOM = 4f;
@@ -131,6 +133,8 @@ public class GuiDialogInspect : GuiDialog
     {
         forStack = null;
         forEntityId = null;
+        EntityGuiTransformPatchActive = false;
+        EntityGuiPitchDeg = 0f;
         ResetValues();
         ResetAutoRotation();
         LockStack = false;
@@ -145,6 +149,7 @@ public class GuiDialogInspect : GuiDialog
         rotZ = 0f;
         offsetX = 0f;
         offsetY = 0f;
+        EntityGuiPitchDeg = 0f;
         rotateObject = false;
         offsetObject = false;
     }
@@ -372,9 +377,12 @@ public class GuiDialogInspect : GuiDialog
         if (autoRotation)
         {
             rotY += deltaTime * 20f;
-            rotX += (float)Math.Cos(capi.InWorldEllapsedMilliseconds / 1000f) * deltaTime * 5f;
+            if (forEntityId == null)
+            {
+                rotX += (float)Math.Cos(capi.InWorldEllapsedMilliseconds / 1000f) * deltaTime * 5f;
+                rotX %= 360f;
+            }
             rotY %= 360f;
-            rotX %= 360f;
         }
 
         mat.Identity().RotateXDeg(-14);
@@ -386,57 +394,49 @@ public class GuiDialogInspect : GuiDialog
 
         float centerX = (float)offsetX + frameWidth;
         float centerY = (float)offsetY + frameHeight;
-        float posZ = (float)GuiElement.scaled(9999);
+        float posZ = (float)GuiElement.scaled(250);
         float size = (float)GuiElement.scaled(100 * currentZoom);
+        float entitySize = (float)GuiElement.scaled(80f * currentZoom);
 
-        capi.Render.PushScissor(insetSlotBounds);
 
         Entity? forEntity = forEntityId != null ? capi.World.GetEntityById(forEntityId.Value) : null;
         if (forEntity != null)
         {
             forStack = null;
 
-            ClientMain game = (ClientMain)capi.World;
-            ModelTransform transform = ModelTransform.ItemDefaultGui();
+            capi.Render.GlPushMatrix();
+            capi.Render.GlRotate(-14, 1, 0, 0);
 
-            float itemOffsetX = 3f;
-            float itemOffsetY = 1f;
-            float originX = (float)(transform.Origin.X + GuiElement.scaled(transform.Translation.X));
-            float originY = (float)(transform.Origin.Y + GuiElement.scaled(transform.Translation.Y));
-            float originZ = (float)(transform.Origin.Z * size + GuiElement.scaled(transform.Translation.Z));
+            float entityHeight = forEntity.SelectionBox.Y2 - forEntity.SelectionBox.Y1;
+            float entityWidth = forEntity.SelectionBox.X2 - forEntity.SelectionBox.X1;
+            float entityDepth = forEntity.SelectionBox.Z2 - forEntity.SelectionBox.Z1;
+            float entityMaxDimension = Math.Max(entityHeight, Math.Max(entityWidth, entityDepth));
+            float entityScaledHeight = entityHeight * forEntity.Properties.Client.Size * entitySize;
+            float entityPosZ = Math.Max((float)GuiElement.scaled(250), entitySize * forEntity.Properties.Client.Size * entityMaxDimension * 2f);
+            float entityYaw = -GameMath.PIHALF + 0.3f + rotY * GameMath.DEG2RAD;
+            float entityDrawY = centerY - 2 * entitySize;
+            EntityGuiPitchDeg = rotX;
+            EntityGuiTransformPatchActive = true;
 
-            mat.Identity();
-            mat.Translate(
-                centerX - itemOffsetX - originX,
-                centerY - itemOffsetY - originY,
-                posZ
-            );
-            mat.Translate(originX, originY, originZ);
+            try
+            {
+                capi.Render.RenderEntityToGui(
+                    deltaTime,
+                    forEntity,
+                    centerX - entitySize,
+                    entityDrawY,
+                    entityPosZ,
+                    entityYaw,
+                    entitySize,
+                    ColorUtil.WhiteArgb
+                );
+            }
+            finally
+            {
+                EntityGuiTransformPatchActive = false;
+            }
 
-            mat.Scale(
-                size * transform.ScaleXYZ.X,
-                size * transform.ScaleXYZ.Y,
-                size * transform.ScaleXYZ.Z
-            );
-            mat.RotateXDeg(transform.Rotation.X + rotX + 180f);
-            mat.RotateYDeg(transform.Rotation.Y + rotY);
-            mat.RotateZDeg(transform.Rotation.Z + rotZ);
-            mat.Translate(-transform.Origin.X, -transform.Origin.Y, -transform.Origin.Z);
-
-            var shader = game.guiShaderProg;
-            shader.NormalShaded = 1;
-            shader.RgbaIn = new Vec4f(1, 1, 1, 1);
-            shader.ApplyColor = 1;
-            shader.RgbaGlowIn = new Vec4f(0, 0, 0, 0);
-            shader.ModelMatrix = mat.Values;
-            shader.ProjectionMatrix = game.CurrentProjectionMatrix;
-            shader.ModelViewMatrix = mat.ReverseMul(game.CurrentModelViewMatrix).Values;
-            shader.ApplyModelMat = 1;
-
-            capi.Render.RenderEntityToGui(deltaTime, forEntity, centerX, centerY, posZ, rotY / 30, size, -1);
-            shader.ApplyModelMat = 0;
-            shader.NormalShaded = 0;
-            shader.AlphaTest = 0f;
+            capi.Render.GlPopMatrix();
         }
 
         DummySlot slot = new DummySlot(forStack);
@@ -444,6 +444,8 @@ public class GuiDialogInspect : GuiDialog
 
         if (itemstack != null)
         {
+            capi.Render.PushScissor(insetSlotBounds);
+
             ClientMain game = (ClientMain)capi.World;
             ItemRenderInfo renderInfo = InventoryItemRenderer.GetItemStackRenderInfo(game, slot, EnumItemRenderTarget.Gui, deltaTime);
 
@@ -496,9 +498,10 @@ public class GuiDialogInspect : GuiDialog
                 shader.AlphaTest = 0f;
 
             }
+
+            capi.Render.PopScissor();
         }
 
-        capi.Render.PopScissor();
         capi.Render.CurrentActiveShader.Uniform("lightPosition", GameMath.ONEOVERROOT2, -GameMath.ONEOVERROOT2, 0f);
     }
 }
