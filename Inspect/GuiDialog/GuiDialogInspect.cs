@@ -42,6 +42,8 @@ public class GuiDialogInspect : GuiDialog
     protected float rotY;
     protected float rotZ;
     protected bool autoRotation = true;
+    protected bool pauseAutoRotation = false;
+    protected bool toggleAnimations = true;
     protected int? rotationDelayInMs;
 
     public override float ZSize => 999;
@@ -65,7 +67,8 @@ public class GuiDialogInspect : GuiDialog
             { "inspect:reset", OnResetValues },
             { "inspect:zoom-in", OnZoomIn },
             { "inspect:zoom-out", OnZoomOut },
-            { "inspect:autorotate", OnToggleAutoRotate }
+            { "inspect:autorotate", OnToggleAutoRotate },
+            { "inspect:animations", OnToggleAnimations },
         };
     }
 
@@ -106,6 +109,7 @@ public class GuiDialogInspect : GuiDialog
         tooltipText.AppendLine(Lang.Get("inspect:tooltip-zoom-in"));
         tooltipText.AppendLine(Lang.Get("inspect:tooltip-zoom-out"));
         tooltipText.AppendLine(Lang.Get("inspect:tooltip-autorotate"));
+        tooltipText.AppendLine(Lang.Get("inspect:tooltip-animations"));
 
         composer.AddIf(showTooltip);
         composer.AddRichtext(tooltipText.ToString(), CairoFont.WhiteMediumText().WithFontSize(24), tooltipBounds, "tooltip");
@@ -156,6 +160,7 @@ public class GuiDialogInspect : GuiDialog
 
     private void ResetAutoRotation()
     {
+        pauseAutoRotation = false;
         autoRotation = true;
         rotationDelayInMs = null;
     }
@@ -198,7 +203,7 @@ public class GuiDialogInspect : GuiDialog
 
         if (rotateObject)
         {
-            autoRotation = false;
+            pauseAutoRotation = true;
             rotationDelayInMs = DEFAULT_ROTATION_DELAY_IN_MS;
 
             if ((args.Modifiers & 1) != 0)
@@ -215,7 +220,7 @@ public class GuiDialogInspect : GuiDialog
 
         if (offsetObject)
         {
-            autoRotation = false;
+            pauseAutoRotation = true;
             rotationDelayInMs = DEFAULT_ROTATION_DELAY_IN_MS;
 
             offsetX += args.DeltaX;
@@ -280,7 +285,14 @@ public class GuiDialogInspect : GuiDialog
     private bool OnToggleAutoRotate()
     {
         autoRotation = !autoRotation;
+        pauseAutoRotation = false;
         rotationDelayInMs = null;
+        return true;
+    }
+
+    private bool OnToggleAnimations()
+    {
+        toggleAnimations = !toggleAnimations;
         return true;
     }
 
@@ -363,26 +375,27 @@ public class GuiDialogInspect : GuiDialog
 
         currentZoom += (targetZoom - currentZoom) * deltaTime * 5f;
 
-        if (rotationDelayInMs != null)
+        if (pauseAutoRotation && rotationDelayInMs != null)
         {
             rotationDelayInMs -= (int)(deltaTime * 1000);
 
             if (rotationDelayInMs < 0)
             {
                 rotationDelayInMs = null;
-                autoRotation = true;
+                pauseAutoRotation = false;
             }
         }
 
-        if (autoRotation)
+        if (autoRotation && !pauseAutoRotation)
         {
             rotY += deltaTime * 20f;
+            rotY %= 360f;
+
             if (forEntityId == null)
             {
                 rotX += (float)Math.Cos(capi.InWorldEllapsedMilliseconds / 1000f) * deltaTime * 5f;
                 rotX %= 360f;
             }
-            rotY %= 360f;
         }
 
         mat.Identity().RotateXDeg(-14);
@@ -399,8 +412,12 @@ public class GuiDialogInspect : GuiDialog
         float entitySize = size;
 
         Entity? forEntity = forEntityId != null ? capi.World.GetEntityById(forEntityId.Value) : null;
-        if (forEntity != null)
+
+        if (forEntity != null && forEntity.AnimManager?.Animator != null)
         {
+            capi.Render.CurrentActiveShader.Uniform("applyAnimation", toggleAnimations ? (int)1 : 0);
+            capi.Render.CurrentActiveShader.UBOs["Animation"].Update(forEntity.AnimManager.Animator.Matrices, 0, forEntity.AnimManager.Animator.MaxJointId * 16 * 4);
+
             forStack = null;
 
             capi.Render.GlPushMatrix();
@@ -436,47 +453,41 @@ public class GuiDialogInspect : GuiDialog
             }
 
             capi.Render.GlPopMatrix();
+            capi.Render.CurrentActiveShader.Uniform("applyAnimation", (int)0);
         }
-
-        DummySlot slot = new DummySlot(forStack);
-        ItemStack? itemstack = slot.Itemstack;
-
-        if (itemstack != null)
+        else if (forStack != null)
         {
             capi.Render.PushScissor(insetSlotBounds);
 
             ClientMain game = (ClientMain)capi.World;
-            ItemRenderInfo renderInfo = InventoryItemRenderer.GetItemStackRenderInfo(game, slot, EnumItemRenderTarget.Gui, deltaTime);
+            ItemRenderInfo renderInfo = InventoryItemRenderer.GetItemStackRenderInfo(game, new DummySlot(forStack), EnumItemRenderTarget.Gui, deltaTime);
 
             if (renderInfo.ModelRef != null)
             {
-                itemstack.Collectible.InGuiIdle(game, itemstack);
+                if (autoRotation && !pauseAutoRotation)
+                {
+                    forStack.Collectible.InGuiIdle(game, forStack);
+                }
 
                 ModelTransform transform = renderInfo.Transform;
-                bool upsideDown = itemstack.Class == EnumItemClass.Block;
+                bool upsideDown = forStack.Class == EnumItemClass.Block;
 
-                float itemOffsetX = itemstack.Class == EnumItemClass.Item ? 3f : 0f;
-                float itemOffsetY = itemstack.Class == EnumItemClass.Item ? 1f : 0f;
+                float itemOffsetX = forStack.Class == EnumItemClass.Item ? 3f : 0f;
+                float itemOffsetY = forStack.Class == EnumItemClass.Item ? 1f : 0f;
                 float originX = (float)(transform.Origin.X + GuiElement.scaled(transform.Translation.X));
                 float originY = (float)(transform.Origin.Y + GuiElement.scaled(transform.Translation.Y));
                 float originZ = (float)(transform.Origin.Z * size + GuiElement.scaled(transform.Translation.Z));
 
                 mat.Identity();
-                mat.Translate(
-                    centerX - itemOffsetX - originX,
-                    centerY - itemOffsetY - originY,
-                    posZ
-                );
+                mat.Translate(centerX - itemOffsetX - originX, centerY - itemOffsetY - originY, posZ);
                 mat.Translate(originX, originY, originZ);
 
-                mat.Scale(
-                    size * transform.ScaleXYZ.X,
-                    size * transform.ScaleXYZ.Y,
-                    size * transform.ScaleXYZ.Z
-                );
+                mat.Scale(size * transform.ScaleXYZ.X, size * transform.ScaleXYZ.Y, size * transform.ScaleXYZ.Z);
+
                 mat.RotateXDeg(transform.Rotation.X + rotX + (upsideDown ? 180f : 0));
                 mat.RotateYDeg(transform.Rotation.Y + rotY);
                 mat.RotateZDeg(transform.Rotation.Z + rotZ);
+
                 mat.Translate(-transform.Origin.X, -transform.Origin.Y, -transform.Origin.Z);
 
                 var shader = game.guiShaderProg;
@@ -484,7 +495,6 @@ public class GuiDialogInspect : GuiDialog
                 shader.RgbaIn = new Vec4f(1, 1, 1, 1);
                 shader.ApplyColor = renderInfo.ApplyColor ? 1 : 0;
                 shader.AlphaTest = renderInfo.AlphaTest;
-                shader.RgbaGlowIn = new Vec4f(0, 0, 0, 0);
                 shader.ModelMatrix = mat.Values;
                 shader.ProjectionMatrix = game.CurrentProjectionMatrix;
                 shader.ModelViewMatrix = mat.ReverseMul(game.CurrentModelViewMatrix).Values;
@@ -493,11 +503,7 @@ public class GuiDialogInspect : GuiDialog
                 capi.Render.RenderMultiTextureMesh(renderInfo.ModelRef, "tex2d");
 
                 shader.ApplyModelMat = 0;
-                shader.NormalShaded = 0;
-                shader.AlphaTest = 0f;
-
             }
-
             capi.Render.PopScissor();
         }
 

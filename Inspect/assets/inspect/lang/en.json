@@ -6,6 +6,7 @@
     "hotkey-zoom-in":         "Inspect: Zoom In",
     "hotkey-zoom-out":        "Inspect: Zoom Out",
     "hotkey-autorotate":      "Inspect: Toggle Auto Rotate",
+    "hotkey-animations":      "Inspect: Toggle Animations",
 
     "tooltip-hidetooltip":     "Hide Tooltip:      <hk>inspect:hidetooltip</hk>",
     "tooltip-reset":           "Reset View:      <hk>inspect:reset</hk>",
@@ -15,6 +16,7 @@
     "tooltip-zoom-in":         "Zoom In:      <hk>inspect:zoom-in</hk>",
     "tooltip-zoom-out":        "Zoom Out:      <hk>inspect:zoom-out</hk>",
     "tooltip-autorotate":      "Toggle Auto Rotate:      <hk>inspect:autorotate</hk>",
+    "tooltip-animations":      "Toggle Animations:      <hk>inspect:animations</hk>",
 
     "key-mouse-wheel": "Mouse Wheel"
 }
